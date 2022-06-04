@@ -1,0 +1,249 @@
+---
+title: "FINALE no. 1"
+author: "Naissa Ingrid Jacquet"
+date: "Vendredi, 3 Juin"
+
+output:
+  word_document: default
+  html_document: default
+---
+ INTRODUCTION
+ 
+Il  nous a été demandé d’effectuer un travail de recherche sur Rmarkdown. Ce travail consistera à effectuer les tests de stationnarité et de causalité sur 3 variables que j’aurai à chosir. La dernière étape consistera à effectuer une régession linéaire qui  tient compte des résultats des tests de causalité.
+Ces différentes tâches seront réalisées  à parit des données de la BRH que nous importerons d’un lien url. Après importation des données, nous procederons au nettoyage et filtrage de ces données afin d’effectuer les différentes tâches indiquées par le professeur. 
+
+```{r, message=FALSE, warning=FALSE, echo=F }
+library(tidyverse)
+library(readxl)
+
+install.packages("tseries")
+install.packages("lmtest")
+
+library(lmtest)
+library(tseries)
+
+#1) Importation des données via un lien URL
+
+url1<-'https://www.brh.ht/wp-content/uploads/agregatsmon.xls'
+p1f <- tempfile()
+download.file(url1, p1f, mode="wb")
+agregatsmon.data <-read_excel(path = p1f, skip = 2)
+
+
+#2) Nettoyage des données importées
+agregatsmon.data <- agregatsmon.data[1:517,] 
+
+agregatsmon.data <- rename(agregatsmon.data, Date = ...1) 
+
+agregatsmon.data <- agregatsmon.data[-1,] 
+
+agregatsmon.data$Date <- as.numeric(agregatsmon.data$Date)
+
+
+
+#3) Correction au niveau du format des dates
+agregatsmon.data$Date <- as.Date(agregatsmon.data$Date, 
+                                 origin = "1899-12-30")
+
+
+# Les dates manquantes
+
+agregatsmon.data$Date[309] <- "2004-07-01"
+agregatsmon.data$Date[310] <- "2004-08-01"
+agregatsmon.data$Date[311] <- "2004-09-01"
+agregatsmon.data$Date[312] <- "2004-10-01"
+agregatsmon.data$Date[313] <- "2004-11-01"
+agregatsmon.data$Date[314] <- "2004-12-01"
+agregatsmon.data$Date[315] <- "2005-01-01"
+agregatsmon.data$Date[316] <- "2005-02-01"
+agregatsmon.data$Date[317] <- "2005-03-01"
+agregatsmon.data$Date[318] <- "2005-04-01"
+agregatsmon.data$Date[319] <- "2005-05-01"
+agregatsmon.data$Date[320] <- "2005-06-01"
+
+agregatsmon.data$Date[360] <- "2008-10-01"
+agregatsmon.data$Date[361] <- "2008-11-01"
+agregatsmon.data$Date[362] <- "2008-12-01"
+agregatsmon.data$Date[363] <- "2009-01-01"
+agregatsmon.data$Date[364] <- "2009-02-01"
+
+
+#Filtrons a partir d'Octobre 1990
+agregatsmon.data2 <- agregatsmon.data %>% 
+  filter(Date >= "1990-10-01")
+
+#head(agregatsmon.data2)
+
+###############
+#Nettoyage des colonnes inutiles
+###########
+
+agregatsmon.data2 <- agregatsmon.data2[,-c(5,9,11,15,20,23,25,30,35,40,42,47,56,79,84)]
+
+#head(agregatsmon.data2)
+
+agregatsmon.data3 <- agregatsmon.data2[, c(7,8,36,37)]
+
+
+agregatsmon.data3 <- agregatsmon.data3 %>% 
+  rename(M3 = 'M3...8',
+         taux_change = `TAUX DE CHANGE BRH`,
+         reserves_depot = "Réserves nettes de changes BRH avec dépôts des BCMs (millions de  $)",
+         reserves_systeme = "Réserves nettes de change du système banc.(millions de $)")
+
+agregatsmon.data3 <- agregatsmon.data3 %>% 
+  mutate(M3 = as.numeric(M3),
+         taux_change = as.numeric(taux_change),
+         reserves_depot = as.numeric(reserves_depot),
+         reserves_systeme = as.numeric(reserves_systeme))
+
+#head(agregatsmon.data3)
+
+
+agregatsmon.data3$Date <- agregatsmon.data2$Date
+
+
+
+```
+ TEST DE STATIONNARITE
+ 
+Une série temporelle Yt (t=1,2...) est dite stationnaire (au sens faible) si ses propriétés statistiques ne varient pas dans le temps (espérance, variance, auto-corrélation). Un exemple de série temporaire stationnaire est le bruit blanc.
+Il en existe deux types, avec la stationnarité comme hypothèse nulle ou hypothèse alternative :
+Lorsque l'hypothèse nulle est la stationnarité, on parlera dans ce cas de tests de stationnarité.
+Et de tests de racine unitaire, lorsque l’hypothèse nulle est la non-stationnarité.
+La première condition dispose que l'espérance est constante au cours du temps, il n'y a donc pas de tendance. La seconde condition dispose que la variance est constante au cours du temps et non infinie.
+
+```{r, message=F, warning=FALSE, echo=FALSE}
+
+ ggplot(agregatsmon.data3, aes(x = Date, y = reserves_depot))+
+   geom_line()+
+  labs(title = " Aggregat monetaire reserves_depot",
+       subtitle = "Periode: Octobre 1990 - Octobre 2021")
+ 
+adf.test(agregatsmon.data3$reserves_depot)
+
+
+```
+
+
+
+
+
+
+```{r, message=F, warning=FALSE, echo=FALSE}
+ ggplot(agregatsmon.data3, aes(x = Date, y = reserves_systeme))+
+   geom_line()+
+   labs(title = " reserves_systeme",
+        y = "reserves_systeme",
+        subtitle = "Periode: Octobre 1990 - Octobre 2021")
+
+adf.test(agregatsmon.data3$reserves_systeme)
+ 
+```
+
+
+```{r, message=F, warning=FALSE, echo=FALSE}
+
+ 
+  ggplot(agregatsmon.data3, aes(x = Date, y =M3))+
+   geom_line()+
+   labs(title = " TAux",
+        y = "Reserves nettes avec depots des BCMs",
+        subtitle = "Periode: Octobre 1990 - Octobre 2021")
+  
+adf.test(agregatsmon.data3$M3)
+  
+```
+CONCLUSION:
+
+P-value > 5% alors on peut affirmer qu'il n'y a pas d'assez de preuves pour rejetter l'hypothese nulle de non-stationnarite des trois variables. Les variables sont donc non-stationnaires en niveau.
+
+
+
+ TEST DE STATIONNARITE EN DIFFERENCE:
+
+```{r, message=F, warning=F, echo=F}
+a <- diff(agregatsmon.data3$M3)
+plot(a, ylab = "M3")
+adf.test(a, k=2)
+
+b <- diff(agregatsmon.data3$taux_change)
+plot(b, ylab = "taux de change")
+adf.test(b, k=2)
+
+c <- diff(agregatsmon.data3$reserves_depot)
+plot(c, ylab = "reserves nettes avec depots BCMs")
+adf.test(c, k=2)
+```
+
+
+\TEST DE CAUSALITE AU SENS GRANGER
+
+La causalité a été introduite dans l'analyse économétrique par Wiener et Granger. Ce test de causalité est un test d'hypothèse statistique pour déterminer si une série chronologique est utile pour en prévoir une autre, proposé pour la première fois en 1969.
+Transposée en économie, la notion de causalité revêt une connotation technique spécifique. En effet, si une variable causait une autre variable, alors nécessairement les deux variables doivent être corrélées. À l'inverse, il ne suffit pas que deux variables soient corrélées, pour qu’il ait causalité (corrélation n'est pas causalité).
+Sur le plan statistique, le test de causalité au sens de Granger revient à faire un test de significativité globale des coefficients associés aux valeurs passées de la variable causale dans l'équation de la variable causée.
+
+
+
+Source: https://www.r-bloggers.com/2021/11/granger-causality-test-in-r-with-example/
+
+
+```{r, message=F, warning=F, echo=F}
+grangertest(reserves_systeme ~ taux_change, data = agregatsmon.data3, order = 1)
+grangertest(reserves_systeme ~ taux_change, data = agregatsmon.data3, order = 2)
+
+
+
+
+```
+Avec des p-value > $\alpha$ = 0.05, on ne peut rejetter l'hypothese nulle de non-causalite au sens de Granger. Les valeurs de l'agregat Reserves_systeme n'aideront pas a prevoir celles de l'agregat taux_change.
+
+```{r, message=F, warning=F, echo=F}
+grangertest(taux_change ~ taux_change, 
+            data = agregatsmon.data3, 
+            order = 3)
+
+
+grangertest(taux_change ~ taux_change, 
+            data = agregatsmon.data3, 
+            order = 4)
+
+```
+\newpage
+
+
+```{r, message = F, warning=F, echo=F}
+grangertest(taux_change ~ M3, 
+            data = agregatsmon.data3, 
+            order = 1)
+
+grangertest(taux_change ~ M3, 
+            data = agregatsmon.data3, 
+            order = 2)
+```
+
+Avec des p-value < $\alpha$ = 0.05, on rejette l'hypothese nulle de non-causalite au sens de Granger.
+Les valeurs de M3 sont utiles pour prevoir les valeurs futures du taux de change
+``
+
+
+
+REGRESSION LINEAire:
+
+La regression lineaire est un modele qui permet de realiser des predictions ou des estimations sur la base des valeurs existantes. En effet, une relation lineaire est etblie entre une variable expliquee Taux_change et une variable a expliquer M3.
+``````{r, message=F, warning=F, echo=F}
+rl <- lm(taux_change ~ M3, data = agregatsmon.data3)
+summary(rl)$coef
+
+```
+
+D'ou:
+
+taux de change estimee = 6.17 + 0.01 * M3  
+
+
+
+
+
+
+#
